@@ -96,3 +96,12 @@ const port = process.env.PORT || 3000;
 app.listen(port, () => {
     console.log(`服务器运行在端口 ${port}`);
 });
+// 新增的测试接口
+app.get('/test-env', (req, res) => {
+    const apiKey = process.env.DEEPSEEK_API_KEY;
+    res.json({
+        keyExists: !!apiKey,
+        keyPrefix: apiKey ? apiKey.substring(0, 10) : null,
+        nodeEnv: process.env.NODE_ENV
+    });
+});
