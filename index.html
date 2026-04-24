@@ -146,7 +146,7 @@
 
             try {
                 // 核心修改3：发送完整的对话历史给后端
-                const response = await fetch('https://ai-chat-demo-production.up.railway.app', {
+                const response = await fetch('https://ai-chat-demo-production.up.railway.app/api/chat', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
