@@ -4,6 +4,8 @@ const cors = require('cors');
 require('dotenv').config();
 
 const app = express();
+const path = require('path');
+app.use(express.static('public'));
 app.use(cors());
 app.use(express.json());
 
