@@ -4,38 +4,37 @@ const cors = require('cors');
 require('dotenv').config();
 
 const app = express();
-const path = require('path');
-app.use(express.static('public'));
+const PORT = process.env.PORT || 3000;
+
+// 中间件 - 顺序很重要
 app.use(cors());
 app.use(express.json());
-
-// 添加调试：检查 API Key 是否读取成功
-const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY;
-console.log('API Key 是否存在:', !!DEEPSEEK_API_KEY);
-console.log('API Key 前10位:', DEEPSEEK_API_KEY ? DEEPSEEK_API_KEY.substring(0, 10) : '未找到');
+app.use(express.urlencoded({ extended: true }));
+app.use(express.static('public'));
 
 const DEEPSEEK_API_URL = 'https://api.deepseek.com/v1/chat/completions';
 
 app.post('/api/chat', async (req, res) => {
+    console.log('收到请求:', JSON.stringify(req.body, null, 2));
+
     const { message, history } = req.body;
 
-    res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+    if (!message && (!history || history.length === 0)) {
+        return res.status(400).send('Missing message or history');
+    }
+
+    res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
 
+    let messagesToSend = [];
+    if (history && history.length > 0) {
+        messagesToSend = history;
+    } else {
+        messagesToSend = [{ role: 'user', content: message }];
+    }
+
     try {
-        // 构建消息列表
-        let messagesToSend = [];
-        if (history && history.length > 0) {
-            messagesToSend = history;
-        } else {
-            messagesToSend = [
-                { role: 'user', content: message }
-            ];
-        }
-
-        console.log('发送请求到 DeepSeek，消息长度:', messagesToSend.length);
-
         const response = await axios({
             method: 'post',
             url: DEEPSEEK_API_URL,
@@ -45,13 +44,11 @@ app.post('/api/chat', async (req, res) => {
                 stream: true
             },
             headers: {
-                'Authorization': `Bearer ${DEEPSEEK_API_KEY}`,
+                'Authorization': `Bearer ${process.env.DEEPSEEK_API_KEY}`,
                 'Content-Type': 'application/json'
             },
             responseType: 'stream'
         });
-
-        let fullReply = '';
 
         response.data.on('data', (chunk) => {
             const lines = chunk.toString().split('\n');
@@ -64,9 +61,8 @@ app.post('/api/chat', async (req, res) => {
                     }
                     try {
                         const data = JSON.parse(jsonStr);
-                        const content = data.choices[0]?.delta?.content || '';
+                        const content = data.choices?.[0]?.delta?.content || '';
                         if (content) {
-                            fullReply += content;
                             res.write(content);
                         }
                     } catch (e) { }
@@ -74,10 +70,7 @@ app.post('/api/chat', async (req, res) => {
             }
         });
 
-        response.data.on('end', () => {
-            res.end();
-        });
-
+        response.data.on('end', () => res.end());
         response.data.on('error', (err) => {
             console.error('流错误:', err);
             res.write('[错误] 连接中断');
@@ -85,25 +78,21 @@ app.post('/api/chat', async (req, res) => {
         });
 
     } catch (error) {
-        console.error('完整错误:', error.message);
-        if (error.response) {
-            console.error('响应状态:', error.response.status);
-            console.error('响应数据:', error.response.data);
+        console.error('API调用失败:', error.message);
+        if (error.response?.status === 401) {
+            res.status(500).send('API密钥无效');
+        } else {
+            res.status(500).send('服务器错误: ' + error.message);
         }
-        res.status(500).send(error.message);
     }
 });
 
-const port = process.env.PORT || 3000;
-app.listen(port, () => {
-    console.log(`服务器运行在端口 ${port}`);
+app.get('/health', (req, res) => {
+    res.json({ status: 'ok', time: new Date().toISOString() });
 });
-// 新增的测试接口
-app.get('/test-env', (req, res) => {
-    const apiKey = process.env.DEEPSEEK_API_KEY;
-    res.json({
-        keyExists: !!apiKey,
-        keyPrefix: apiKey ? apiKey.substring(0, 10) : null,
-        nodeEnv: process.env.NODE_ENV
-    });
+
+app.listen(PORT, () => {
+    console.log(`✅ 服务器运行在端口 ${PORT}`);
+    console.log(`📡 API地址: /api/chat`);
+    console.log(`🔑 API Key存在: ${!!process.env.DEEPSEEK_API_KEY}`);
 });
