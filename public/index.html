@@ -362,9 +362,9 @@
         const messageInput = document.getElementById('messageInput');
 
         // 核心修改1：维护对话历史（存储用户和AI的所有消息）
+        // 注意：只放 system prompt，欢迎语仅展示在 UI，不发给 API
         let conversationHistory = [
-            { role: 'system', content: '你是一个乐于助人的AI助手。' },
-            { role: 'assistant', content: '你好！我是AI助手，有什么可以帮你的？' }
+            { role: 'system', content: '你是一个乐于助人的AI助手。' }
         ];
 
         // 当前选中的角色（用于后续角色预设功能）
@@ -385,6 +385,9 @@
             // 显示用户消息
             addMessage(message, 'user');
             messageInput.value = '';
+
+            // 将用户消息加入对话历史，再发给后端
+            conversationHistory.push({ role: 'user', content: message });
 
             // 创建一个AI消息容器（用来放内容）
             const aiMessageDiv = document.createElement('div');
@@ -446,10 +449,8 @@
         // 新增：清除对话历史的功能
         function clearHistory() {
             conversationHistory = [
-                { role: 'system', content: '你是一个乐于助人的AI助手。' },
-                { role: 'assistant', content: '对话已清空，我们可以重新开始。有什么想问的吗？' }
+                { role: 'system', content: '你是一个乐于助人的AI助手。' }
             ];
-            // 清空聊天界面，只保留欢迎消息
             chatBox.innerHTML = '<div class="message ai">对话已清空，我们可以重新开始。有什么想问的吗？</div>';
         }
         // 角色预设配置
@@ -477,15 +478,16 @@
             };
             document.getElementById(roleMap[role]).classList.add('active');
 
-            // 切换 system prompt
+            // 切换 system prompt（不在 history 里放 assistant 欢迎语）
             conversationHistory = [
-                { role: 'system', content: rolePrompts[role] },
-                { role: 'assistant', content: `角色已切换为${role === 'translator' ? '翻译助手' : role === 'coder' ? '代码助手' : role === 'friend' ? '情感树洞' : '通用助手'}。${role === 'translator' ? '请发送需要翻译的内容。' : role === 'coder' ? '有什么编程问题？' : role === 'friend' ? '有什么想聊的吗？' : '有什么可以帮你的？'}` }
+                { role: 'system', content: rolePrompts[role] }
             ];
+
+            const welcomeMsg = `角色已切换为${role === 'translator' ? '翻译助手' : role === 'coder' ? '代码助手' : role === 'friend' ? '情感树洞' : '通用助手'}。${role === 'translator' ? '请发送需要翻译的内容。' : role === 'coder' ? '有什么编程问题？' : role === 'friend' ? '有什么想聊的吗？' : '有什么可以帮你的？'}`;
 
             // 刷新聊天界面
             const chatBox = document.getElementById('chatBox');
-            chatBox.innerHTML = `<div class="message ai">${conversationHistory[1].content}</div>`;
+            chatBox.innerHTML = `<div class="message ai">${welcomeMsg}</div>`;
         }
         messageInput.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') sendMessage();
