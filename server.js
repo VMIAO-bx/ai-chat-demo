@@ -6,7 +6,6 @@ require('dotenv').config();
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// 中间件 - 顺序很重要
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -17,7 +16,7 @@ const DEEPSEEK_API_URL = 'https://api.deepseek.com/v1/chat/completions';
 app.post('/api/chat', async (req, res) => {
     console.log('收到请求:', JSON.stringify(req.body, null, 2));
 
-    const { message, history } = req.body;
+    let { message, history } = req.body;
 
     if (!message && (!history || history.length === 0)) {
         return res.status(400).send('Missing message or history');
@@ -27,12 +26,36 @@ app.post('/api/chat', async (req, res) => {
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
 
+    // 构建发送给 DeepSeek 的消息列表
     let messagesToSend = [];
+
+    // 1. 先添加历史记录
     if (history && history.length > 0) {
-        messagesToSend = history;
-    } else {
-        messagesToSend = [{ role: 'user', content: message }];
+        messagesToSend = [...history];
     }
+
+    // 2. 确保当前用户消息在最后
+    if (message) {
+        const lastMsg = messagesToSend[messagesToSend.length - 1];
+        if (!lastMsg || lastMsg.role !== 'user' || lastMsg.content !== message) {
+            messagesToSend.push({ role: 'user', content: message });
+            console.log('已添加当前消息:', message);
+        } else {
+            console.log('当前消息已在历史中');
+        }
+    }
+
+    // 3. 确保第一条是 system 消息
+    if (messagesToSend.length === 0) {
+        return res.status(400).send('No messages to send');
+    }
+
+    if (messagesToSend[0].role !== 'system') {
+        messagesToSend.unshift({ role: 'system', content: '你是一个乐于助人的AI助手。' });
+    }
+
+    console.log('发送给 DeepSeek 的消息数:', messagesToSend.length);
+    console.log('最后一条消息:', messagesToSend[messagesToSend.length - 1]);
 
     try {
         const response = await axios({
