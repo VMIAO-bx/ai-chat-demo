@@ -317,7 +317,8 @@
                     }
 
                     if (text) {
-                        fullReply += text;
+                        const cleanText = text.replace(/\*/g, '');
+                        fullReply += cleanText;
                         aiMessageDiv.textContent = fullReply;
                         chatBox.scrollTop = chatBox.scrollHeight;
                     }
