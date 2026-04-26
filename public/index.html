@@ -30,11 +30,12 @@
         .app-container {
             display: flex;
             flex-direction: column;
-            height: 100%;
+            height: 100vh;
             max-width: 800px;
             margin: 0 auto;
             width: 100%;
             background: #f5f5f5;
+            overflow: hidden;
         }
 
         .header {
@@ -104,6 +105,8 @@
             display: flex;
             flex-direction: column;
             gap: 12px;
+            min-height: 0;
+            /* 关键：允许 flex 子项收缩 */
         }
 
         .message {
@@ -320,7 +323,9 @@
                         const cleanText = text.replace(/\*/g, '');
                         fullReply += cleanText;
                         aiMessageDiv.textContent = fullReply;
-                        chatBox.scrollTop = chatBox.scrollHeight;
+                        requestAnimationFrame(() => {
+                            chatBox.scrollTop = chatBox.scrollHeight;
+                        });
                     }
                 }
 
