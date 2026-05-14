@@ -1,0 +1,4 @@
+#绝对不上传包含API Key
+.env
+
+node_modules
